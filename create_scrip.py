@@ -13,86 +13,7 @@ def parse_args():
     p = argparse.ArgumentParser(description='Flatten a lat-lon to 1D')
     p.add_argument('-i','--input',type=str,help='input file',default=None)
     p.add_argument('-o','--output',type=str,help='output file',default=None)
-    p.add_argument('-s','--scrip',type=str,help='scrip file',default=None)
     return vars(p.parse_args())
-
-def scramble(xi,xo):
-    xt=numpy.zeros([4])
-    for i in range(4):
-      xt[i]=xi[i]
-    jf=[]
-    jf.append(True)
-    jf.append(True)
-    jf.append(True)
-    jf.append(True)
-    for i in range(4):
-        x=xt[i]
-        for j in range(4):
-            if jf[j]:
-               #print(i,j,x,xo[j],abs(x-xo[j]),abs(x-xo[j])<0.01)
-               wtf=abs(x-xo[j])<0.01
-               #if abs(x-xo[j])<0.0001:
-               if wtf:
-                  #print("found: ",j),xo[j]
-                  xi[j]=xo[j]
-                  jf[j]=False
-    return xi 
-
-def compute_corner(cellx,celly,iloc,jloc):
-    n=0
-    idx=[]
-    jdx=[]
-    for i in range(3):
-        #print(i,cellx[i+1],cellx[0])
-        #print(cellx[i+1]<cellx[0])
-        #print(cellx[i+1]==cellx[0])
-        #print(celly[i+1] <celly[0])
-        if (cellx[i+1]<cellx[0]) or (cellx[i+1]==cellx[0] and celly[i+1] <celly[0]):
-           #print("in: ",i)
-           n = i+1
-    #print("n: ",n)
-
-    if n==0:
-       idx.append(iloc)
-       jdx.append(jloc)
-       idx.append(iloc+1)
-       jdx.append(jloc)
-       idx.append(iloc+1)
-       jdx.append(jloc+1)
-       idx.append(iloc)
-       jdx.append(jloc+1)
-    elif n==1:
-       idx.append(iloc+1)
-       jdx.append(jloc)
-       idx.append(iloc+1)
-       jdx.append(jloc+1)
-       idx.append(iloc)
-       jdx.append(jloc+1)
-       idx.append(iloc)
-       jdx.append(jloc)
-    elif n==2:
-       idx.append(iloc+1)
-       jdx.append(jloc+1)
-       idx.append(iloc)
-       jdx.append(jloc+1)
-       idx.append(iloc)
-       jdx.append(jloc)
-       idx.append(iloc+1)
-       jdx.append(jloc)
-    elif n==3:
-       idx.append(iloc)
-       jdx.append(jloc+1)
-       idx.append(iloc)
-       jdx.append(jloc)
-       idx.append(iloc+1)
-       jdx.append(jloc)
-       idx.append(iloc+1)
-       jdx.append(jloc+1)
-    return(idx,jdx)
-       
-
-        
-   
 
 #------------------
 # Opening the file
@@ -100,14 +21,8 @@ def compute_corner(cellx,celly,iloc,jloc):
 comm_args    = parse_args()
 Input_file   = comm_args['input']
 Output_file  = comm_args['output']
-scrip_file = comm_args['scrip']
 ncFid = Dataset(Input_file, mode='r')
 ncFidOut = Dataset(Output_file, mode='w', format='NETCDF4')
-ncScrip = Dataset(scrip_file,mode='r')
-tlon=ncScrip.variables['grid_corner_lon'][:]
-tlat=ncScrip.variables['grid_corner_lat'][:]
-#clon=ncScrip.variables['grid_center_lon'][:]
-#clat=ncScrip.variables['grid_center_lat'][:]
 #---------------------
 # Extracting variables
 #---------------------
@@ -130,7 +45,6 @@ setattr(ncFidOut,"GridDescriptionFormat","SCRIP")
 setattr(ncFidOut,"title","GMAO PE24x144-CF Grid")
 
 ncols = len(xdim)*len(ydim)*len(nf)
-print(ncols)
 im=len(xdim)
 ncolOut = ncFidOut.createDimension('grid_size', ncols)
 grsz = ncFidOut.createDimension('grid_corners',4)
@@ -176,95 +90,61 @@ tempyc=temp.reshape([ncols])
 tempx = ncFid.variables["corner_lons"][:]
 tempy = ncFid.variables["corner_lats"][:]
 icnt=0
+
+tempx[1,:,0]=tempx[0,:,im]
+tempy[1,:,0]=tempy[0,:,im]
+
+tempx[2,::-1,0]=tempx[0,im,:]
+tempy[2,::-1,0]=tempy[0,im,:]
+
+tempx[4,im,::-1]=tempx[0,:,0]
+tempy[4,im,::-1]=tempy[0,:,0]
+
+tempx[5,im,:]=tempx[0,0,:]
+tempy[5,im,:]=tempy[0,0,:]
+
+tempx[2,0,:]=tempx[1,im,:]
+tempy[2,0,:]=tempy[1,im,:]
+
+tempx[3,0,::-1]=tempx[1,:,im]
+tempy[3,0,::-1]=tempy[1,:,im]
+
+tempx[5,::-1,im]=tempx[1,0,:]
+tempy[5,::-1,im]=tempy[1,0,:]
+
+tempx[3,:,0]=tempx[2,:,im]
+tempy[3,:,0]=tempy[2,:,im]
+
+tempx[4,::-1,0]=tempx[2,im,:]
+tempy[4,::-1,0]=tempy[2,im,:]
+
+tempx[2,:,im]=tempx[3,:,0]
+tempy[2,:,im]=tempy[3,:,0]
+
+tempx[4,0,:]=tempx[3,im,:]
+tempy[4,0,:]=tempy[3,im,:]
+
+tempx[5,0,::-1]=tempx[3,:,im]
+tempy[5,0,::-1]=tempy[3,:,im]
+
+tempx[5,:,0]=tempx[4,:,im]
+tempy[5,:,0]=tempy[4,:,im]
+
 for n in range(6):
-#for n in range(1):
    for j in range(im):
       for i in range(im):
-   #for j in range(1):
-      #for i in range(20):
-
-          x[0]=tempx[n,j,i]
-          x[1]=tempx[n,j,i+1]
-          x[2]=tempx[n,j+1,i+1]
-          x[3]=tempx[n,j+1,i]
-          y[0]=tempy[n,j,i]
-          y[1]=tempy[n,j,i+1]
-          y[2]=tempy[n,j+1,i+1]
-          y[3]=tempy[n,j+1,i]
-
-          xt=tlon[icnt,:]
-          yt=tlat[icnt,:]
-
-          #print(x)
-          x=scramble(x,xt)
-          #print(x)
-          #print(xt)
-          y=scramble(y,yt)
-
-       
-
-          #lon_e=x.max()
-          #lon_w=x.min()
-          #xt=x
-          #if (abs(lon_e - lon_w) > 180.0) and (tempxc[icnt] < 180.0):
-             #xt=numpy.where(x>180.0,x-360.0,x)
-          #elif (abs(lon_e - lon_w) > 180.0) and (tempxc[icnt] > 180.0):
-             #xt=numpy.where(x<180.0,x+360.0,x)
-
-          #xy[0,0]=xt[0]
-          #xy[1,0]=xt[1]
-          #xy[2,0]=xt[2]
-          #xy[3,0]=xt[3]
-          #xy[0,1]=y[0]
-          #xy[1,1]=y[1]
-          #xy[2,1]=y[2]
-          #xy[3,1]=y[3]
-          #hull=ConvexHull(xy,qhull_options='Qa')
-          #print(hull.vertices[0])
 
 
-          #idx,jdx=compute_corner(xt,y,i,j)
+          grid_corner_lon[icnt,0]=tempx[n,j,i]
+          grid_corner_lon[icnt,1]=tempx[n,j,i+1]
+          grid_corner_lon[icnt,2]=tempx[n,j+1,i+1]
+          grid_corner_lon[icnt,3]=tempx[n,j+1,i]
 
-          #grid_corner_lon[icnt,0]=tempx[n,j,i]
-          #grid_corner_lon[icnt,1]=tempx[n,j,i+1]
-          #grid_corner_lon[icnt,2]=tempx[n,j+1,i+1]
-          #grid_corner_lon[icnt,3]=tempx[n,j+1,i]
+          grid_corner_lat[icnt,0]=tempy[n,j,i]
+          grid_corner_lat[icnt,1]=tempy[n,j,i+1]
+          grid_corner_lat[icnt,2]=tempy[n,j+1,i+1]
+          grid_corner_lat[icnt,3]=tempy[n,j+1,i]
 
-          #grid_corner_lat[icnt,0]=tempy[n,j,i]
-          #grid_corner_lat[icnt,1]=tempy[n,j,i+1]
-          #grid_corner_lat[icnt,2]=tempy[n,j+1,i+1]
-          #grid_corner_lat[icnt,3]=tempy[n,j+1,i]
-          #grid_corner_lon[icnt,0]=tempx[n,j,i]
-
-          #grid_corner_lon[icnt,0]=tempx[n,jdx[0],idx[0]]
-          #grid_corner_lon[icnt,1]=tempx[n,jdx[1],idx[1]]
-          #grid_corner_lon[icnt,2]=tempx[n,jdx[2],idx[2]]
-          #grid_corner_lon[icnt,3]=tempx[n,jdx[3],idx[3]]
-
-          #grid_corner_lat[icnt,0]=tempy[n,jdx[0],idx[0]]
-          #grid_corner_lat[icnt,1]=tempy[n,jdx[1],idx[1]]
-          #grid_corner_lat[icnt,2]=tempy[n,jdx[2],idx[2]]
-          #grid_corner_lat[icnt,3]=tempy[n,jdx[3],idx[3]]
-
-          #grid_corner_lon[icnt,0]=x[hull.vertices[0]]
-          #grid_corner_lon[icnt,1]=x[hull.vertices[1]]
-          #grid_corner_lon[icnt,2]=x[hull.vertices[2]]
-          #grid_corner_lon[icnt,3]=x[hull.vertices[3]]
-
-          #grid_corner_lat[icnt,0]=y[hull.vertices[0]]
-          #grid_corner_lat[icnt,1]=y[hull.vertices[1]]
-          #grid_corner_lat[icnt,2]=y[hull.vertices[2]]
-          #grid_corner_lat[icnt,3]=y[hull.vertices[3]]
-
-          grid_corner_lon[icnt,0]=x[0]
-          grid_corner_lon[icnt,1]=x[1]
-          grid_corner_lon[icnt,2]=x[2]
-          grid_corner_lon[icnt,3]=x[3]
-
-          grid_corner_lat[icnt,0]=y[0]
-          grid_corner_lat[icnt,1]=y[1]
-          grid_corner_lat[icnt,2]=y[2]
-          grid_corner_lat[icnt,3]=y[3]
           icnt=icnt+1
 
      

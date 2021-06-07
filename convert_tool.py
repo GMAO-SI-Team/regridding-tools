@@ -5,12 +5,18 @@ from convertCStoScrip import convert_cs_to_scrip
 import argparse
 import sys
 import os,subprocess
+import glob
 from netCDF4 import Dataset
 
-def generate_esmf_weights(cube_size,ll_file,weights,method):
+
+def generate_scrip(input_file,output_file):
+
+    subprocess.call(["./create_scrip.py","-i",input_file,"-o",output_file])
+
+def generate_esmf_weights(cube_size,cube_file,ll_file,weights,method):
    
     cube6=cube_size*6
-    scrip_file="/discover/nobackup/bmauer/Cubed_Sphere_Grids_WithArea/PE"+str(cube_size)+"x"+str(cube6)+"-CF.nc4"
+    scrip_file=cube_file
     input_arg="-s "+scrip_file
     dest_arg="-d "+ll_file
     w_arg="-w "+weights
@@ -22,8 +28,8 @@ def generate_esmf_weights(cube_size,ll_file,weights,method):
        m_opt="-m"
        m_arg="conserve"
 
-    exec_path="/discover/swdev/gmao_SIteam/Baselibs/ESMA-Baselibs-6.1.0/x86_64-pc-linux-gnu/ifort_19.1.3.304-intelmpi_19.1.3.304/Linux/bin/ESMF_RegridWeightGen"
-    subprocess.call([exec_path,"-s",scrip_file,"-d",ll_file,"-w",weights,m_opt,m_arg,"--check","--netCDF4"])
+    exec_path="ESMF_RegridWeightGen"
+    subprocess.call(["mpirun","-np","4",exec_path,"-s",scrip_file,"-d",ll_file,"-w",weights,m_opt,m_arg,"--check","--netCDF4"])
 
 def run_remap(input_file,output_file,weights):
 
@@ -45,6 +51,9 @@ def parse_args():
     p.add_argument('-n','--input_file',type=str,help='input',default=None)
     p.add_argument('-o','--output_file',type=str,help='output',default=None)
     p.add_argument('-m','--method',type=str,help='method',default="bilinear")
+    p.add_argument('--grid_dir',type=str,help='precompute_grid_dir',default=".")
+    p.add_argument('--num_tasks',type=int,help='num_tasks',default="1")
+    
 
     return vars(p.parse_args())
 
@@ -58,30 +67,54 @@ if __name__ == '__main__':
    dateline = comm_args['dateline']
    output_file = comm_args['output_file']
    input_file = comm_args['input_file']
-
+   grid_path = comm_args['grid_dir']
    method = comm_args['method']
 
-   latlon_grid = LatLonGridFactory(im_world,jm_world,dateline,pole,"degrees")
-
-   ll_file=pole+str(im_world)+"x"+str(jm_world)+"-"+dateline
-   latlon_grid.write_grid(ll_file)
 
    ncFid = Dataset(input_file,mode='r')
    xdim = ncFid.variables['Xdim'][:]
    cube_size = len(xdim)
+   cube_file = "PE"+str(cube_size)+"x"+str(cube_size*6)+"-CF.nc4"
+
+   cube_path = grid_path+"/"+cube_file
+
+   if grid_path != ".":
+      if (not os.path.isfile(cube_path)):
+         print("Generating scrip file")
+         generate_scrip(input_file,cube_path)
+   else:
+      generate_scrip(input_file,cube_path)
+   
+
+   latlon_grid = LatLonGridFactory(im_world,jm_world,dateline,pole,"degrees")
+
+
+   ll_file=pole+str(im_world)+"x"+str(jm_world)+"-"+dateline
+   latlon_grid.write_grid(ll_file)
 
    temp_file="temp_1d.nc4"
    temp_out="temp_out.nc4"
-   weight_file="temp_weights.nc4"
+
+   weight_file = "PE"+str(cube_size)+"x"+str(cube_size*6)+"-CF_"+str(im_world)+"x"+str(jm_world)+"-"+dateline+".nc4" 
+   weight_path = grid_path+"/"+weight_file
+   if grid_path != ".":
+      if (not os.path.isfile(weight_path)):
+         generate_esmf_weights(cube_size,cube_path,ll_file,weight_path,method)
+   else:
+      generate_esmf_weights(cube_size,cube_path,ll_file,weight_path,method)
 
    convert_cs_to_scrip(input_file,temp_file)
-
-   generate_esmf_weights(cube_size,ll_file,weight_file,method)
-
-   run_remap(temp_file,temp_out,weight_file)
+   run_remap(temp_file,temp_out,weight_path)
 
    strip_vars(temp_out,output_file)
 
-   subprocess.call(["rm",temp_out,temp_file,weight_file,"PET*.RegridWeightGen.Log",ll_file])
+   subprocess.call(["rm",temp_out,temp_file,ll_file])
+   if (grid_path == "."):
+      subprocess.call(["rm",cube_path,weight_path])
 
+
+   fileList=glob.glob('PET*.Log')
+   for filePath in fileList:
+      os.remove(filePath)
+      
 
