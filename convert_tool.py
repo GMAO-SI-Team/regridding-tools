@@ -28,10 +28,14 @@ def generate_esmf_weights(cube_size,cube_file,ll_file,nproc,weights,method):
     exec_path="ESMF_RegridWeightGen"
     subprocess.call(["mpirun","-np",nproc,exec_path,"-s",scrip_file,"-d",ll_file,"-w",weights,m_opt,m_arg,"--check","--netCDF4","--no_log"])
 
-def run_remap(input_file,output_file,weights):
+def run_remap(input_file,output_file,weights,variables):
 
    cmd="ncremap"
-   subprocess.call([cmd,"-i",input_file,"-o",output_file,"-m",weights,"--preserve=mean"])
+   args = [cmd,"-i",input_file,"-o",output_file,"-m",weights,"--preserve=mean"]
+   if variables != 'all':
+      args.append("-v")
+      args.append(variables)
+   subprocess.call(args)
 
 
 def strip_vars(input_file,output_file):
@@ -50,6 +54,7 @@ def parse_args():
     p.add_argument('-m','--method',type=str,help='method',default="bilinear")
     p.add_argument('--grid_dir',type=str,help='precompute_grid_dir',default=".")
     p.add_argument('--num_tasks',type=str,help='num_tasks',default="1")
+    p.add_argument('-v','--vars',type=str,help='comma separated list of variables to regrid',default='all')
     
 
     return vars(p.parse_args())
@@ -67,7 +72,7 @@ if __name__ == '__main__':
    grid_path = comm_args['grid_dir']
    method = comm_args['method']
    mpi_task = comm_args['num_tasks']
-
+   vars_opt = comm_args['vars']
 
    ncFid = Dataset(input_file,mode='r')
    xdim = ncFid.variables['Xdim'][:]
@@ -102,7 +107,7 @@ if __name__ == '__main__':
       generate_esmf_weights(cube_size,cube_path,ll_file,mpi_task,weight_path,method)
 
    convert_cs_to_scrip(input_file,temp_file)
-   run_remap(temp_file,temp_out,weight_path)
+   run_remap(temp_file,temp_out,weight_path,vars_opt)
 
    strip_vars(temp_out,output_file)
 
