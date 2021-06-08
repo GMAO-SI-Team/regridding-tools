@@ -2,16 +2,13 @@
 
 from cf_latlon_grid_descriptor import LatLonGridFactory
 from convertCStoScrip import convert_cs_to_scrip
+from scrip_creator import create_scrip_from_geos
 import argparse
 import sys
 import os,subprocess
 import glob
 from netCDF4 import Dataset
 
-
-def generate_scrip(input_file,output_file):
-
-    subprocess.call(["./create_scrip.py","-i",input_file,"-o",output_file])
 
 def generate_esmf_weights(cube_size,cube_file,ll_file,nproc,weights,method):
    
@@ -82,9 +79,9 @@ if __name__ == '__main__':
    if grid_path != ".":
       if (not os.path.isfile(cube_path)):
          print("Generating scrip file")
-         generate_scrip(input_file,cube_path)
+         create_scrip_from_geos(input_file,cube_path)
    else:
-      generate_scrip(input_file,cube_path)
+      create_scrip_from_geos(input_file,cube_path)
    
 
    latlon_grid = LatLonGridFactory(im_world,jm_world,dateline,pole,"degrees")
