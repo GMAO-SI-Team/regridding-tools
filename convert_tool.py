@@ -106,7 +106,7 @@ if __name__ == '__main__':
    else:
       generate_esmf_weights(cube_size,cube_path,ll_file,mpi_task,weight_path,method)
 
-   convert_cs_to_scrip(input_file,temp_file)
+   convert_cs_to_scrip(input_file,temp_file,vars_opt)
    run_remap(temp_file,temp_out,weight_path,vars_opt)
 
    strip_vars(temp_out,output_file)

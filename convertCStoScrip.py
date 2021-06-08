@@ -7,12 +7,17 @@ from netCDF4 import Dataset
 import numpy
 import argparse
 
-def convert_cs_to_scrip(Input_file,Output_file):
+def convert_cs_to_scrip(Input_file,Output_file,vars_to_write):
    ncFid = Dataset(Input_file, mode='r')
    ncFidOut = Dataset(Output_file, mode='w', format='NETCDF4')
    #---------------------
    # Extracting variables
    #---------------------
+
+   if vars_to_write != 'all':
+      v_exclude = vars_to_write.split()
+   else:
+      v_exclude = []
 
    haveLev = False
    for dim in ncFid.dimensions:
@@ -48,6 +53,8 @@ def convert_cs_to_scrip(Input_file,Output_file):
    timesOut[:] = time
 
    Exclude_Var = ['Xdim','Ydim','time','lev','nf','ncontact','cubed_sphere','contacts','orientation','anchor']
+   Exclude_Var.append(v_exclude)
+
    for var in ncFid.variables:
       if var not in Exclude_Var:
          temp = ncFid.variables[var][:]
