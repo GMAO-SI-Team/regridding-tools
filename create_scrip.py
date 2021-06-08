@@ -73,11 +73,9 @@ do_var = ['lons','lats','corner_lons','corner_lats']
 
 x=numpy.zeros([4])
 y=numpy.zeros([4])
-xt=numpy.zeros([4])
-yt=numpy.zeros([4])
 
-xy=numpy.zeros([4,2])
-
+newx = numpy.zeros([ncols,4])
+newy = numpy.zeros([ncols,4])
 
 temp = ncFid.variables["lons"][:]
 grid_center_lon[:]=temp.reshape([ncols])
@@ -135,19 +133,30 @@ for n in range(6):
       for i in range(im):
 
 
-          grid_corner_lon[icnt,0]=tempx[n,j,i]
-          grid_corner_lon[icnt,1]=tempx[n,j,i+1]
-          grid_corner_lon[icnt,2]=tempx[n,j+1,i+1]
-          grid_corner_lon[icnt,3]=tempx[n,j+1,i]
+          #grid_corner_lon[icnt,0]=tempx[n,j,i]
+          #grid_corner_lon[icnt,1]=tempx[n,j,i+1]
+          #grid_corner_lon[icnt,2]=tempx[n,j+1,i+1]
+          #grid_corner_lon[icnt,3]=tempx[n,j+1,i]
 
-          grid_corner_lat[icnt,0]=tempy[n,j,i]
-          grid_corner_lat[icnt,1]=tempy[n,j,i+1]
-          grid_corner_lat[icnt,2]=tempy[n,j+1,i+1]
-          grid_corner_lat[icnt,3]=tempy[n,j+1,i]
+          #grid_corner_lat[icnt,0]=tempy[n,j,i]
+          #grid_corner_lat[icnt,1]=tempy[n,j,i+1]
+          #grid_corner_lat[icnt,2]=tempy[n,j+1,i+1]
+          #grid_corner_lat[icnt,3]=tempy[n,j+1,i]
+
+          newx[icnt,0]=tempx[n,j,i]
+          newx[icnt,1]=tempx[n,j,i+1]
+          newx[icnt,2]=tempx[n,j+1,i+1]
+          newx[icnt,3]=tempx[n,j+1,i]
+
+          newy[icnt,0]=tempy[n,j,i]
+          newy[icnt,1]=tempy[n,j,i+1]
+          newy[icnt,2]=tempy[n,j+1,i+1]
+          newy[icnt,3]=tempy[n,j+1,i]
 
           icnt=icnt+1
 
-     
+grid_corner_lon[:]=newx[:]
+grid_corner_lat[:]=newy[:]
 ncFidOut.close()
 
 
