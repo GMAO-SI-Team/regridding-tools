@@ -13,7 +13,7 @@ def generate_scrip(input_file,output_file):
 
     subprocess.call(["./create_scrip.py","-i",input_file,"-o",output_file])
 
-def generate_esmf_weights(cube_size,cube_file,ll_file,weights,method):
+def generate_esmf_weights(cube_size,cube_file,ll_file,nproc,weights,method):
    
     cube6=cube_size*6
     scrip_file=cube_file
@@ -29,7 +29,7 @@ def generate_esmf_weights(cube_size,cube_file,ll_file,weights,method):
        m_arg="conserve"
 
     exec_path="ESMF_RegridWeightGen"
-    subprocess.call(["mpirun","-np","4",exec_path,"-s",scrip_file,"-d",ll_file,"-w",weights,m_opt,m_arg,"--check","--netCDF4"])
+    subprocess.call(["mpirun","-np",nproc,exec_path,"-s",scrip_file,"-d",ll_file,"-w",weights,m_opt,m_arg,"--check","--netCDF4","--no_log"])
 
 def run_remap(input_file,output_file,weights):
 
@@ -52,7 +52,7 @@ def parse_args():
     p.add_argument('-o','--output_file',type=str,help='output',default=None)
     p.add_argument('-m','--method',type=str,help='method',default="bilinear")
     p.add_argument('--grid_dir',type=str,help='precompute_grid_dir',default=".")
-    p.add_argument('--num_tasks',type=int,help='num_tasks',default="1")
+    p.add_argument('--num_tasks',type=str,help='num_tasks',default="1")
     
 
     return vars(p.parse_args())
@@ -69,6 +69,7 @@ if __name__ == '__main__':
    input_file = comm_args['input_file']
    grid_path = comm_args['grid_dir']
    method = comm_args['method']
+   mpi_task = comm_args['num_tasks']
 
 
    ncFid = Dataset(input_file,mode='r')
@@ -95,22 +96,25 @@ if __name__ == '__main__':
    temp_file="temp_1d.nc4"
    temp_out="temp_out.nc4"
 
-   weight_file = "PE"+str(cube_size)+"x"+str(cube_size*6)+"-CF_"+str(im_world)+"x"+str(jm_world)+"-"+dateline+".nc4" 
+   weight_file = "PE"+str(cube_size)+"x"+str(cube_size*6)+"-CF_"+str(im_world)+"x"+str(jm_world)+"-"+dateline+"_"+method+".nc4" 
    weight_path = grid_path+"/"+weight_file
    if grid_path != ".":
       if (not os.path.isfile(weight_path)):
-         generate_esmf_weights(cube_size,cube_path,ll_file,weight_path,method)
+         generate_esmf_weights(cube_size,cube_path,ll_file,mpi_task,weight_path,method)
    else:
-      generate_esmf_weights(cube_size,cube_path,ll_file,weight_path,method)
+      generate_esmf_weights(cube_size,cube_path,ll_file,mpi_task,weight_path,method)
 
    convert_cs_to_scrip(input_file,temp_file)
    run_remap(temp_file,temp_out,weight_path)
 
    strip_vars(temp_out,output_file)
 
-   subprocess.call(["rm",temp_out,temp_file,ll_file])
+   fileList=[temp_out,temp_file,ll_file]
    if (grid_path == "."):
-      subprocess.call(["rm",cube_path,weight_path])
+      fileList.append(cube_path)
+      fileList.append(weight_path)
+   for filePath in fileList:
+      os.remove(filePath)
 
 
    fileList=glob.glob('PET*.Log')
